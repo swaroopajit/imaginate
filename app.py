@@ -27,12 +27,16 @@ def process_image():
     nparr = np.frombuffer(decoded_image, np.uint8)
     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
+    # Save the captured image to a folder
+    cv2.imwrite('captures/captured_image.jpg', frame)
+
     # Convert the image to tensor
     image = torch.tensor(frame, dtype=torch.float32).permute(2, 0, 1) / 255.0
     image = image.unsqueeze(0).to(device)
 
     # Generate caption
-    inputs = processor(images=image, return_tensors="pt").to(device)
+    model.to(device)  # Ensure the model is on the same device as the input
+    inputs = processor(images=image, return_tensors="pt", do_rescale=False).to(device)
     pixel_values = inputs.pixel_values
     generated_ids = model.generate(pixel_values=pixel_values, max_length=50)
     generated_caption = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
