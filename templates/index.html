@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imaginate</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body>
+    <h1>Imaginate</h1>
+    <div id="loading" style="display: none;">
+        <p>Loading...</p>
+    </div>
+    <div id="camera-preview" style="display: none;">
+        <video id="video" width="640" height="480" autoplay playsinline></video>
+        <button id="capture-btn">Capture Image</button>
+    </div>
+    <div id="caption" style="display: none;">
+        <h2>Generated Caption:</h2>
+        <p id="generated-caption"></p>
+    </div>
+    
+    <script>
+        // JavaScript code to control the camera preview and capture
+        const video = document.getElementById('video');
+        const captureBtn = document.getElementById('capture-btn');
+        const loading = document.getElementById('loading');
+        const cameraPreview = document.getElementById('camera-preview');
+        const captionDiv = document.getElementById('caption');
+        const generatedCaption = document.getElementById('generated-caption');
+
+        captureBtn.addEventListener('click', () => {
+            loading.style.display = 'block';
+            cameraPreview.style.display = 'none';
+            captureImage();
+        });
+
+        async function captureImage() {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = video.width;
+            canvas.height = video.height;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const image = canvas.toDataURL('image/jpeg');
+            
+            const response = await fetch('/process_image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({image: image})
+            });
+
+            const caption = await response.text();
+            loading.style.display = 'none';
+            captionDiv.style.display = 'block';
+            generatedCaption.innerText = caption;
+        }
+
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+            video.srcObject = stream;
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    resolve();
+                };
+            });
+        }
+
+        async function startCamera() {
+            await setupCamera();
+            video.play();
+            cameraPreview.style.display = 'block';
+        }
+
+        startCamera();
+    </script>
+</body>
+</html>
