@@ -3,21 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Imaginate</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
-    <h1>Imaginate</h1>
-    <div id="loading" style="display: none;">
-        <p>Loading...</p>
+    <div class="top-bar">
+        <img class="logo" src="{{ url_for('static', filename='images/logo-no-background.png') }}" alt="Logo">
     </div>
-    <div id="camera-preview" style="display: none;">
-        <video id="video" width="640" height="480" autoplay playsinline></video>
-        <button id="capture-btn">Capture Image</button>
-    </div>
-    <div id="caption" style="display: none;">
-        <h2>Generated Caption:</h2>
-        <p id="generated-caption"></p>
+    <div class="container">        
+        <div id="loading">
+            <span class="loader"></span>
+        </div>
+        <div id="camera-preview">
+            <img class="capture-window" src="{{ url_for('video_feed') }}">
+            <div class="container-button"  id="capture-btn">
+
+                <a href="#" class="button">
+                  <div class="button__line"></div>
+                  <div class="button__line"></div>
+                  <span class="button__text">CAPTURE IMAGE</span>
+                  <div class="button__drow1"></div>
+                  <div class="button__drow2"></div>
+                </a>
+              
+              </div>
+        </div>
+        <div id="caption" class="caption">
+            <div class='main-caption'>
+                <!-- <img class='tokenImage' src="" alt="NFT" /> -->
+                <h2>Generated Caption</h2>
+                <p class='description' id="generated-caption"></p>
+                <div class='tokenInfo'>
+                  <div class="duration">
+                    <ins>◷</ins>
+                    <p id="duration"></p>
+                  </div>
+                </div>
+            </div>
+            <div>
+        </div>
     </div>
     
     <script>
@@ -28,6 +54,7 @@
         const cameraPreview = document.getElementById('camera-preview');
         const captionDiv = document.getElementById('caption');
         const generatedCaption = document.getElementById('generated-caption');
+        const generatedRuntime = document.getElementById('duration')
 
         captureBtn.addEventListener('click', () => {
             loading.style.display = 'block';
@@ -43,7 +70,7 @@
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             const image = canvas.toDataURL('image/jpeg');
             
-            const response = await fetch('/process_image', {
+            const response = await fetch('/capture', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -51,29 +78,14 @@
                 body: JSON.stringify({image: image})
             });
 
-            const caption = await response.text();
+            const data= await response.json(); 
+            const caption = data.caption;
+            const runtime = data.runtime;
             loading.style.display = 'none';
             captionDiv.style.display = 'block';
             generatedCaption.innerText = caption;
+            generatedRuntime.innerText = `Runtime: ${runtime.toFixed(2)} seconds`;
         }
-
-        async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-            video.srcObject = stream;
-            return new Promise((resolve) => {
-                video.onloadedmetadata = () => {
-                    resolve();
-                };
-            });
-        }
-
-        async function startCamera() {
-            await setupCamera();
-            video.play();
-            cameraPreview.style.display = 'block';
-        }
-
-        startCamera();
     </script>
 </body>
 </html>
