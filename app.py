@@ -1,10 +1,21 @@
 from flask import Flask, render_template, request, jsonify, Response
 import torch
 from transformers import AutoProcessor, AutoModelForCausalLM
-import cv2
 import numpy as np
 import base64
+import os
 import time
+from PIL import Image
+from io import BytesIO
+
+#make shots directory to save pics
+try:
+    os.mkdir('./shots')
+except OSError as error:
+    pass
+
+global capture
+capture=0
 
 app = Flask(__name__)
 
@@ -12,50 +23,35 @@ app = Flask(__name__)
 processor = AutoProcessor.from_pretrained("swaroopajit/git-base-next-refined")
 model = AutoModelForCausalLM.from_pretrained("swaroopajit/git-base-next-refined")
 
-# Initialize variable to store captured frame
-captured_frame = None
+app = Flask(__name__)
 
-def generate_frames():
-    cap = cv2.VideoCapture(0)  # 0 indicates the default camera (usually the webcam)
-
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-        else:
-            try:
-                ret, buffer = cv2.imencode('.jpg', cv2.flip(frame,1))
-                frame = buffer.tobytes()
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-            except Exception as e:
-                pass
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/process_image', methods=['POST'])
+# Define a route that accepts POST requests
+@app.route('/get_caption', methods=['POST'])
 def process_image():
     start_time = time.time()  # Record the start time
 
-    data = request.get_json()
-    encoded_image = data.get('image')
-    decoded_image = base64.b64decode(encoded_image.split(',')[1])
-    nparr = np.frombuffer(decoded_image, np.uint8)
-    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    # Get the base64-encoded image from the request JSON
+    request_data = request.get_json()
+    image_data = request_data['base64_image']
 
-    # Save the captured image to a folder
-    cv2.imwrite('captures/captured_image.jpg', frame)
+    # Decode the base64 string
+    image_bytes = base64.b64decode(image_data)
 
+    # Create a PIL image object
+    img = Image.open(BytesIO(image_bytes))
+
+    # Process the image (e.g., apply filters, resize, etc.)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    # Convert the image to tensor
-    image = torch.tensor(frame, dtype=torch.float32).permute(2, 0, 1) / 255.0
+
+    # Convert image to a numpy array
+    image_array = np.array(img)
+
+    # Convert numpy array to a tensor
+    image = torch.tensor(image_array, dtype=torch.float32).permute(2, 0, 1) / 255.0
     image = image.unsqueeze(0).to(device)
 
-    print(device)
-    model.to(device)  # Ensure the model is on the same device as the input
+    # Assuming `model` and `processor` are defined earlier in your code
+    model.to(device)
     inputs = processor(images=image, return_tensors="pt", do_rescale=False).to(device)
     pixel_values = inputs.pixel_values
     generated_ids = model.generate(pixel_values=pixel_values, max_length=50)
@@ -64,17 +60,75 @@ def process_image():
     end_time = time.time()  # Record the end time
     runtime = end_time - start_time  # Calculate the runtime
 
-    return jsonify({'caption': generated_caption, 'runtime': runtime})
+    # Save the processed image (replace 'p' with the desired file path)
+    img.save('processed_image.jpg')
 
-@app.route('/video_feed')
-def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    # Return the processed image and caption
+    return jsonify({
+        'caption': generated_caption,
+        'runtime': runtime
+    })
 
-@app.route('/capture', methods=['POST'])
-def capture():
-    global captured_frame
-    captured_frame = cv2.imdecode(np.frombuffer(request.files['image'].read(), np.uint8), -1)
-    return '', 204
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+# def generate_frames():
+#     camera = cv2.VideoCapture(0)
+#     global capture
+#     while True:
+#         success, frame = camera.read()
+#         if not success:
+#             break
+#         else:
+#             if(capture):
+#                 # do the infrencing here hopefully
+#                 start_time = time.time()  # Record the start time
+#                 capture=0
+#                 now = datetime.datetime.now()
+#                 p = os.path.sep.join(['shots', "shot_{}.png".format(str(now).replace(":",''))])
+#                 cv2.imwrite(p, frame)
+
+#                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                
+#                 # Convert the image to tensor
+#                 image = torch.tensor(frame, dtype=torch.float32).permute(2, 0, 1) / 255.0
+
+#                 model.to(device)  # Ensure the model is on the same device as the input
+#                 inputs = processor(images=image, return_tensors="pt", do_rescale=False).to(device)
+#                 pixel_values = inputs.pixel_values
+#                 generated_ids = model.generate(pixel_values=pixel_values, max_length=50)
+#                 generated_caption = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+#                 end_time = time.time()  # Record the end time
+#                 runtime = end_time - start_time  # Calculate the runtime
+
+#                 print(generated_caption)
+#                 print(runtime)
+
+#             try:
+#                 ret, buffer = cv2.imencode('.jpg', cv2.flip(frame,1))
+#                 frame = buffer.tobytes()
+#                 yield (b'--frame\r\n'
+#                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+#             except Exception as e:
+#                 pass
+#     camera.release()
+#     cv2.destroyAllWindows()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# @app.route('/video_feed')
+# def video_feed():
+#     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# @app.route('/capture',methods=['POST'])
+# def capture():
+#     global capture
+#     capture=1
+#     return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
