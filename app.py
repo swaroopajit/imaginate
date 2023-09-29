@@ -70,15 +70,9 @@ def process_image():
 
     response, history = model.chat(tokenizer, query = f'<img>{filename}</img>Describe the outfit', history = None)
 
-    #
-
     modal_name = find_string(response, type_list)
     color = find_string(response, color_list)
     gender = find_string(response, gender_list)
-
-    #color, history = model.chat(tokenizer, query = f'<img>{filename}</img>Mention the color of the outfit', history = None)
-
-    #gender, history = model.chat(tokenizer, query = f'<img>{filename}</img>Describe the gender of the person', history = None)
 
     os.remove(filename)
 
@@ -88,8 +82,9 @@ def process_image():
     # Return the processed image and caption
     return jsonify({
         'caption': response,
-        #'color': color,
-        #'gender': gender,
+        'modal_name': modal_name,
+        'color': color,
+        'gender': gender,
         'runtime': runtime
     })
 
