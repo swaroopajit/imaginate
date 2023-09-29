@@ -21,6 +21,10 @@ try:
 except OSError as error:
     pass
 
+gender_list = {}
+type_list = {}
+color_list = {}
+
 tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen-VL-Chat-Int4", trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen-VL-Chat-Int4", device_map="auto", trust_remote_code=True).eval()
 
