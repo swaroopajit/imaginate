@@ -21,8 +21,8 @@ try:
 except OSError as error:
     pass
 
-tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen-VL", trust_remote_code=True)
-model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen-VL", device_map="cuda", trust_remote_code=True).eval()
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen-VL-Chat-Int4", trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen-VL-Chat-Int4", device_map="auto", trust_remote_code=True).eval()
 
 app = Flask(__name__)
 CORS(app)
@@ -34,7 +34,7 @@ def process_image():
     start_time = time.time()  # Record the start time
 
     current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    
+
     # Create the filename with datetime stamp
     filename = f"{current_datetime}.jpg"
 
@@ -51,41 +51,22 @@ def process_image():
     # Save the processed image (replace 'p' with the desired file path)
     img.save(filename)
 
-    # Convert image to a numpy array
-    # image_array = np.array(img)
+    response, history = model.chat(tokenizer, query = f'<img>{filename}</img>Describe the outfit', history = None)
 
-    # # Convert numpy array to a tensor
-    # image = torch.tensor(image_array, dtype=torch.float32).permute(2, 0, 1) / 255.0
-    # image = image.unsqueeze(0).to(device)
+    #color, history = model.chat(tokenizer, query = f'<img>{filename}</img>Mention the color of the outfit', history = None)
 
+    #gender, history = model.chat(tokenizer, query = f'<img>{filename}</img>Describe the gender of the person', history = None)
 
-    query = tokenizer.from_list_format([
-        {'image': filename},
-        {'text': 'Describe the outfit'},
-    ])
-    inputs = tokenizer(query, return_tensors='pt')
-    inputs = inputs.to(model.device)
-    pred = model.generate(**inputs)
-    generated_caption = tokenizer.decode(pred.cpu()[0], skip_special_tokens=False)
-
-    # Process the image (e.g., apply filters, resize, etc.)
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-    # # Assuming `model` and `processor` are defined earlier in your code
-    # model.to(device)
-    # inputs = processor(images=image, return_tensors="pt", do_rescale=False).to(device)
-    # pixel_values = inputs.pixel_values
-    # generated_ids = model.generate(pixel_values=pixel_values, max_length=50)
-    # generated_caption = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    os.remove(filename)
 
     end_time = time.time()  # Record the end time
     runtime = end_time - start_time  # Calculate the runtime
 
-
     # Return the processed image and caption
     return jsonify({
-        'caption': generated_caption,
+        'caption': response,
+        #'color': color,
+        #'gender': gender,
         'runtime': runtime
     })
 
