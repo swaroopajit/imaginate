@@ -13,6 +13,8 @@ import torch
 import datetime
 torch.manual_seed(1234)
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+
 #make shots directory to save pics
 try:
     os.mkdir('./shots')
