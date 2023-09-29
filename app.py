@@ -25,10 +25,12 @@ except OSError as error:
 def read_csv(filename):
     with open(filename, 'r') as file:
         reader = csv.reader(file)
-        data = list(reader)
+        data = [row[0] for row in reader]  # Extracting the first element of each row
     return data
 
 def find_string(input_string, word_list):
+    input_string = input_string.lower()
+    word_list = [word.lower() for word in word_list]
     for word in word_list:
         if word in input_string:
             return word
